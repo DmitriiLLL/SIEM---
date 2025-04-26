@@ -5,11 +5,9 @@ import sqlite3
 import os
 from datetime import datetime
 
-# Источники событий (имитация)
 SOURCES = ["web_server", "database", "auth_service", "network_sensor"]
 EVENT_TYPES = ["login_success", "login_failure", "data_access", "error", "config_change"]
 
-# Модуль сбора событий
 class LogCollector:
     def __init__(self, queue):
         self.queue = queue
@@ -33,7 +31,6 @@ class LogCollector:
     def stop(self):
         self.running = False
 
-# Модуль нормализации
 class Normalizer:
     @staticmethod
     def normalize(raw):
@@ -45,7 +42,6 @@ class Normalizer:
             "details": raw["details"]
         }
 
-# Модуль хранилища (SQLite)
 class EventStore:
     def __init__(self, db_file="siem.db"):
         self.conn = sqlite3.connect(db_file, check_same_thread=False)
@@ -72,7 +68,6 @@ class EventStore:
             (event["time"], event["origin"], event["action"], event["username"], event["details"]) )
         self.conn.commit()
 
-# Модуль корреляции
 class CorrelationEngine:
     def __init__(self, alert_manager):
         self.alert_manager = alert_manager
@@ -82,7 +77,6 @@ class CorrelationEngine:
         user = event["username"]
         action = event["action"]
 
-        # Правило: более 5 неудачных логинов подряд -> подозрение
         if action == "login_failure":
             self.fail_counts[user] = self.fail_counts.get(user, 0) + 1
             if self.fail_counts[user] >= 5:
@@ -92,19 +86,16 @@ class CorrelationEngine:
         elif action == "login_success":
             self.fail_counts[user] = 0
 
-        # Правило: изменение конфигурации на сетевом сенсоре
         if action == "config_change" and event["origin"] == "network_sensor":
             self.alert_manager.raise_alert(
                 f"Configuration change on network_sensor by {user}"
             )
 
-# Модуль оповещений
 class AlertManager:
     def raise_alert(self, message):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[ALERT] {now} - {message}")
 
-# Основной SIEM
 class SIEM:
     def __init__(self):
         self.queue = []
@@ -130,8 +121,7 @@ class SIEM:
         except KeyboardInterrupt:
             self.collector.stop()
         finally:
-            # При любом выходе сохраняем последние события
-            self.dump_last_events_to_file(100, 'last_events.txt')
+            
             print("Exported last events and exiting.")
 
     def dump_last_events_to_file(self, n=10, filepath='last_events.txt'):
@@ -143,7 +133,7 @@ class SIEM:
             "SELECT time, origin, action, username, details FROM events ORDER BY id DESC LIMIT ?", (n,)
         )
         rows = cursor.fetchall()
-        # Записываем в файл от старых к новым
+       
         with open(filepath, 'w', encoding='utf-8') as f:
             for row in reversed(rows):
                 f.write(','.join(row) + '\n')
